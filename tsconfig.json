@@ -1,0 +1,48 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+    "types": ["bun-types"],
+    "paths": {
+      "src/*": ["src/*"],
+      "claude-for-chrome-mcp": [
+        "packages/claude-for-chrome-mcp/src/index.ts"
+      ],
+      "computer-use-input": [
+        "packages/computer-use-input/src/index.js"
+      ],
+      "computer-use-mcp": [
+        "packages/computer-use-mcp/src/index.ts"
+      ],
+      "computer-use-mcp/sentinelApps": [
+        "packages/computer-use-mcp/src/sentinelApps.ts"
+      ],
+      "computer-use-mcp/types": [
+        "packages/computer-use-mcp/src/types.ts"
+      ],
+      "computer-use": [
+        "packages/computer-use/src/index.js"
+      ],
+      "audio-capture-napi": ["packages/audio-capture-napi/src/index.ts"],
+      "color-diff-napi": ["src/native-ts/color-diff/index.ts"],
+      "image-processor-napi": ["packages/image-processor-napi/src/index.ts"],
+      "modifiers-napi": ["packages/modifiers-napi/src/index.ts"],
+      "url-handler-napi": ["packages/url-handler-napi/src/index.ts"]
+    },
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "packages/**/*.ts",
+    "packages/**/*.tsx",
+    "packages/**/*.js"
+  ]
+}

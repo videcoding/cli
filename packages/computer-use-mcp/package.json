@@ -1,0 +1,11 @@
+{
+  "name": "computer-use-mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./sentinelApps": "./src/sentinelApps.ts",
+    "./types": "./src/types.ts"
+  }
+}

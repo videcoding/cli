@@ -1,0 +1,1 @@
+Produce a concrete, execution-ready plan. Keep it specific, ordered, and easy to approve.

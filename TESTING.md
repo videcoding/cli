@@ -35,17 +35,10 @@ High-value coverage already exists for:
 - bootstrap state and session/runtime state transitions
 - log ingestion, debug logging, and error capture paths
 - settings parsing, permission validation, plugin schema validation, and MCP config validation
+- Bash permission prefix extraction, wrapper/env-var stripping, and rule matching behavior
+- permission request routing and notification message selection
+- MCP entrypoint handler registration, tool listing, and tool-call error handling
 - filesystem path resolution, symlink handling, sync/async file operations, and process IO edge cases
-
-## Deferred High-Value Areas
-
-The following areas are intentionally left for a later test phase:
-
-- `src/tools/BashTool/bashPermissions.ts` and related Bash permission decision logic
-- `src/components/permissions/PermissionRequest.tsx` and permission UI routing/components
-- `src/entrypoints/mcp.ts` entrypoint-level protocol behavior
-
-These are still worth testing, but they are explicitly out of scope for the current stopping point.
 
 ## Stop Rule
 

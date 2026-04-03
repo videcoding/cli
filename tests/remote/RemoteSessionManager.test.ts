@@ -81,6 +81,7 @@ async function importFreshRemoteSessionManagerModule() {
       state.sentEvents.push(args)
       return state.sendEventResult
     },
+    isTransientNetworkError: () => false,
   }))
 
   mock.module(sessionsWebSocketModuleUrl, () => ({

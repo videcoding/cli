@@ -23,6 +23,9 @@
     "build": "bun scripts/build.mjs",
     "dev": "bun --preload ./scripts/dev-preload.mjs ./src/entrypoints/cli.tsx",
     "dev:watch": "bun scripts/dev.mjs --watch-only",
+    "test": "bun test --preload ./tests/preload.ts",
+    "test:watch": "bun test --watch --preload ./tests/preload.ts",
+    "test:coverage": "bun test --coverage --preload ./tests/preload.ts",
     "smoke": "bun scripts/smoke-test.mjs",
     "smoke:gui": "bun scripts/gui-smoke-test.mjs",
     "prepublishOnly": "node -e \"if (!process.env.AUTHORIZED) { console.error('ERROR: Direct publishing is not allowed.\\nPlease see the release workflow documentation to publish this package.'); process.exit(1); }\""

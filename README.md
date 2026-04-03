@@ -52,6 +52,26 @@ bun run clean
 
 ## Test Commands
 
+Testing scope and stop-rule are documented in [`TESTING.md`](./TESTING.md).
+
+Unit and integration tests:
+
+```bash
+bun run test
+```
+
+Watch mode:
+
+```bash
+bun run test:watch
+```
+
+Coverage report:
+
+```bash
+bun run test:coverage
+```
+
 Standard smoke test:
 
 ```bash
@@ -68,6 +88,7 @@ Recommended validation sequence:
 
 ```bash
 bun install
+bun run test
 bun run build
 bun run smoke
 bun run smoke:gui

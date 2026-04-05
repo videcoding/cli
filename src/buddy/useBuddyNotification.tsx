@@ -6,19 +6,6 @@ import { Text } from '../ink.js';
 import { getGlobalConfig } from '../utils/config.js';
 import { getRainbowColor } from '../utils/thinking.js';
 
-// Local date, not UTC — 24h rolling wave across timezones. Sustained Twitter
-// buzz instead of a single UTC-midnight spike, gentler on soul-gen load.
-// Teaser window: April 1-7, 2026 only. Command stays live forever after.
-export function isBuddyTeaserWindow(): boolean {
-  if (process.env.USER_TYPE === 'ant') return true;
-  const d = new Date();
-  return d.getFullYear() === 2026 && d.getMonth() === 3 && d.getDate() <= 7;
-}
-export function isBuddyLive(): boolean {
-  if (process.env.USER_TYPE === 'ant') return true;
-  const d = new Date();
-  return d.getFullYear() > 2026 || d.getFullYear() === 2026 && d.getMonth() >= 3;
-}
 function RainbowText(t0) {
   const $ = _c(2);
   const {
@@ -54,7 +41,7 @@ export function useBuddyNotification() {
         return;
       }
       const config = getGlobalConfig();
-      if (config.companion || !isBuddyTeaserWindow()) {
+      if (config.companion) {
         return;
       }
       addNotification({

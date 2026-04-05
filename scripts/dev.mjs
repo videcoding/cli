@@ -83,6 +83,7 @@ async function buildSource({ watch }) {
     define: {
       'process.env.USER_TYPE': JSON.stringify('external'),
     },
+    features: ['BUDDY'],
     ...(watch ? { watch: true } : {}),
   })
 

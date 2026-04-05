@@ -21,7 +21,7 @@
   "scripts": {
     "clean": "node scripts/clean.mjs",
     "build": "bun scripts/build.mjs",
-    "dev": "bun --preload ./scripts/dev-preload.mjs ./src/entrypoints/cli.tsx",
+    "dev": "bun --feature BUDDY --preload ./scripts/dev-preload.mjs ./src/entrypoints/cli.tsx",
     "dev:watch": "bun scripts/dev.mjs --watch-only",
     "test": "bun test --preload ./tests/preload.ts",
     "test:watch": "bun test --watch --preload ./tests/preload.ts",

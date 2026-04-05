@@ -112,6 +112,7 @@ async function buildFromSource(pkg) {
     define: {
       'process.env.USER_TYPE': JSON.stringify('external'),
     },
+    features: ['BUDDY'],
   })
 
   if (!sourceBuild.success) {

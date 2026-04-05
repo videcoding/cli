@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
+    "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "baseUrl": ".",
@@ -34,6 +34,7 @@
     },
     "jsx": "react-jsx",
     "allowJs": true,
+    "noImplicitAny": false,
     "resolveJsonModule": true,
     "noEmit": true,
     "skipLibCheck": true

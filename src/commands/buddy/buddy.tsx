@@ -13,7 +13,11 @@ import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
 } from '../../types/command.js'
-import { getLastBuddyReaction, fireCompanionHatchReaction, fireCompanionPetReaction } from '../../buddy/observer.js'
+import {
+  getLastBuddyReaction,
+  generateCompanionHatchReaction,
+  generateCompanionPetReaction,
+} from '../../buddy/reactions.js'
 import {
   companionUserId,
   getCompanion,
@@ -231,7 +235,7 @@ Make it memorable and distinct.`
 
   try {
     const result = await sideQuery({
-      querySource: 'memdir_relevance',
+      querySource: 'buddy_companion',
       model: getDefaultSonnetModel(),
       system: BUDDY_SYSTEM_PROMPT,
       skipSystemPromptPrefix: true,
@@ -413,7 +417,7 @@ async function hatchCompanion(
     hatchedAt,
   } satisfies Companion
 
-  void fireCompanionHatchReaction(companion, reaction =>
+  void generateCompanionHatchReaction(companion, reaction =>
     context.setAppState(prev =>
       prev.companionReaction === reaction
         ? prev
@@ -460,7 +464,7 @@ export async function call(
     }
 
     context.setAppState(prev => ({ ...prev, companionPetAt: Date.now() }))
-    void fireCompanionPetReaction(reaction =>
+    void generateCompanionPetReaction(reaction =>
       context.setAppState(prev =>
         prev.companionReaction === reaction
           ? prev

@@ -7,7 +7,6 @@ import { logForDebugging } from '../utils/debug.js'
 import {
   checkAndRefreshOAuthTokenIfNeeded,
   getClaudeAIOAuthTokens,
-  isUsing3PServices,
 } from '../utils/auth.js'
 import { getOauthConfig, OAUTH_BETA_HEADER } from '../constants/oauth.js'
 import { getClaudeCodeUserAgent } from '../utils/userAgent.js'
@@ -153,8 +152,6 @@ async function requestReaction(
   addressed: boolean,
   signal: AbortSignal,
 ): Promise<string | null> {
-  if (isUsing3PServices()) return null
-
   const orgUUID = getGlobalConfig().oauthAccount?.organizationUuid
   if (!orgUUID) return null
 
@@ -196,7 +193,7 @@ async function requestReaction(
   }
 }
 
-export async function fireCompanionObserver(
+export async function triggerCompanionReaction(
   messages: Message[],
   onReaction: (reaction: string) => void,
 ): Promise<void> {
@@ -233,7 +230,7 @@ export async function fireCompanionObserver(
   onReaction(reaction)
 }
 
-export async function fireCompanionHatchReaction(
+export async function generateCompanionHatchReaction(
   companion: Companion,
   onReaction: (reaction: string) => void,
 ): Promise<void> {
@@ -255,7 +252,7 @@ export async function fireCompanionHatchReaction(
   onReaction(reaction)
 }
 
-export async function fireCompanionPetReaction(
+export async function generateCompanionPetReaction(
   onReaction: (reaction: string) => void,
 ): Promise<void> {
   const companion = getCompanion()

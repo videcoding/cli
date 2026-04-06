@@ -537,6 +537,7 @@ import {
 } from '../utils/autoRunIssue.js'
 import type { HookProgress } from '../types/hooks.js'
 import { TungstenLiveMonitor } from '../tools/TungstenTool/TungstenLiveMonitor.js'
+import { triggerCompanionReaction } from '../buddy/reactions.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
 const WebBrowserPanelModule = feature('WEB_BROWSER_TOOL')
   ? (require('../tools/WebBrowserTool/WebBrowserPanel.js') as typeof import('../tools/WebBrowserTool/WebBrowserPanel.js'))
@@ -3768,7 +3769,7 @@ export function REPL({
 
 
       if (feature('BUDDY')) {
-        void fireCompanionObserver(messagesRef.current, reaction =>
+        void triggerCompanionReaction(messagesRef.current, reaction =>
           setAppState(prev =>
             prev.companionReaction === reaction
               ? prev

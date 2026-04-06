@@ -1,48 +1,49 @@
 import { describe, expect, test } from 'bun:test'
 import { runCliIsolated } from './cliTestUtils.ts'
 
+const invalidPrintModeCases = [
+  {
+    name: 'rejects stream-json input without stream-json output',
+    args: ['--input-format', 'stream-json'],
+    error:
+      'Error: --input-format=stream-json requires output-format=stream-json.',
+  },
+  {
+    name: 'rejects replay-user-messages without stream-json input and output',
+    args: ['--replay-user-messages'],
+    error:
+      'Error: --replay-user-messages requires both --input-format=stream-json and --output-format=stream-json.',
+  },
+  {
+    name: 'rejects include-partial-messages without print stream-json mode',
+    args: ['--include-partial-messages'],
+    error:
+      'Error: --include-partial-messages requires --print and --output-format=stream-json.',
+  },
+  {
+    name: 'rejects print mode without stdin or prompt input',
+    args: ['-p'],
+    error:
+      'Error: Input must be provided either through stdin or as a prompt argument when using --print',
+  },
+  {
+    name: 'rejects stream-json print output without verbose mode',
+    args: ['-p', 'hi', '--output-format', 'stream-json'],
+    error:
+      'Error: When using --print, --output-format=stream-json requires --verbose',
+  },
+] as const
+
 describe('cli print mode', () => {
-  test(
-    'rejects invalid non-interactive format combinations early',
-    { timeout: 15000 },
-    () => {
-      const cases = [
-      {
-        args: ['--input-format', 'stream-json'],
-        error:
-          'Error: --input-format=stream-json requires output-format=stream-json.',
-      },
-      {
-        args: ['--replay-user-messages'],
-        error:
-          'Error: --replay-user-messages requires both --input-format=stream-json and --output-format=stream-json.',
-      },
-      {
-        args: ['--include-partial-messages'],
-        error:
-          'Error: --include-partial-messages requires --print and --output-format=stream-json.',
-      },
-      {
-        args: ['-p'],
-        error:
-          'Error: Input must be provided either through stdin or as a prompt argument when using --print',
-      },
-      {
-        args: ['-p', 'hi', '--output-format', 'stream-json'],
-        error:
-          'Error: When using --print, --output-format=stream-json requires --verbose',
-      },
-      ]
+  for (const { name, args, error } of invalidPrintModeCases) {
+    test(name, () => {
+      const result = runCliIsolated([...args])
 
-      for (const { args, error } of cases) {
-        const result = runCliIsolated(args)
-
-        expect(result.exitCode).not.toBe(0)
-        expect(result.stdout).toBe('')
-        expect(result.stderr.trim()).toBe(error)
-      }
-    },
-  )
+      expect(result.exitCode).not.toBe(0)
+      expect(result.stdout).toBe('')
+      expect(result.stderr.trim()).toBe(error)
+    })
+  }
 
   test('runs local slash commands in text print mode', () => {
     const cost = runCliIsolated(['-p', '/cost'])

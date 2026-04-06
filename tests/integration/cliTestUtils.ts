@@ -19,13 +19,20 @@ function buildEnv(overrides: Record<string, string> = {}) {
 }
 
 function spawnCli(args: string[], env: Record<string, string>) {
-  const result = Bun.spawnSync(
-    ['bun', '--preload', './scripts/dev-preload.mjs', './src/entrypoints/cli.tsx', ...args],
-    {
-      cwd: root,
-      env,
-    },
-  )
+  const result = Bun.spawnSync({
+    cmd: [
+      process.execPath,
+      '--preload',
+      './scripts/dev-preload.mjs',
+      './src/entrypoints/cli.tsx',
+      ...args,
+    ],
+    cwd: root,
+    env,
+    stdin: 'ignore',
+    stdout: 'pipe',
+    stderr: 'pipe',
+  })
 
   return {
     exitCode: result.exitCode,

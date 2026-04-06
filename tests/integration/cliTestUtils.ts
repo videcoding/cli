@@ -29,7 +29,9 @@ function spawnCli(args: string[], env: Record<string, string>) {
     ],
     cwd: root,
     env,
-    stdin: 'ignore',
+    // Close stdin with an immediate EOF so print-mode tests do not take the
+    // non-TTY "ignored stdin" path that can hang on Linux CI.
+    stdin: new Uint8Array(0),
     stdout: 'pipe',
     stderr: 'pipe',
   })

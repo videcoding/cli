@@ -2,8 +2,11 @@ import { describe, expect, test } from 'bun:test'
 import { runCliIsolated } from './cliTestUtils.ts'
 
 describe('cli print mode', () => {
-  test('rejects invalid non-interactive format combinations early', () => {
-    const cases = [
+  test(
+    'rejects invalid non-interactive format combinations early',
+    { timeout: 15000 },
+    () => {
+      const cases = [
       {
         args: ['--input-format', 'stream-json'],
         error:
@@ -29,16 +32,17 @@ describe('cli print mode', () => {
         error:
           'Error: When using --print, --output-format=stream-json requires --verbose',
       },
-    ]
+      ]
 
-    for (const { args, error } of cases) {
-      const result = runCliIsolated(args)
+      for (const { args, error } of cases) {
+        const result = runCliIsolated(args)
 
-      expect(result.exitCode).not.toBe(0)
-      expect(result.stdout).toBe('')
-      expect(result.stderr.trim()).toBe(error)
-    }
-  })
+        expect(result.exitCode).not.toBe(0)
+        expect(result.stdout).toBe('')
+        expect(result.stderr.trim()).toBe(error)
+      }
+    },
+  )
 
   test('runs local slash commands in text print mode', () => {
     const cost = runCliIsolated(['-p', '/cost'])

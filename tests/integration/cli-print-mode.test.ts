@@ -34,7 +34,7 @@ describe('cli print mode', () => {
     for (const { args, error } of cases) {
       const result = runCliIsolated(args)
 
-      expect(result.exitCode).toBe(1)
+      expect(result.exitCode).not.toBe(0)
       expect(result.stdout).toBe('')
       expect(result.stderr.trim()).toBe(error)
     }

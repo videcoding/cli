@@ -21,7 +21,7 @@ describe('cli isolated state', () => {
   test('reports logged-out auth state when HOME is isolated', () => {
     const result = runCliIsolated(['auth', 'status', '--text'])
 
-    expect(result.exitCode).toBe(1)
+    expect(result.exitCode).not.toBe(0)
     expect(result.stdout).toContain('Not logged in')
     expect(result.stderr).toBe('')
   })

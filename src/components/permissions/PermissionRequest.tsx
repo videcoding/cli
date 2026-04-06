@@ -44,7 +44,7 @@ import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs
 import type { z } from 'zod/v4';
 import type { PermissionUpdate } from '../../utils/permissions/PermissionUpdateSchema.js';
 import type { WorkerBadgeProps } from './WorkerBadge.js';
-export function permissionComponentForTool(tool: Tool): React.ComponentType<PermissionRequestProps> {
+function permissionComponentForTool(tool: Tool): React.ComponentType<PermissionRequestProps> {
   switch (tool) {
     case FileEditTool:
       return FileEditPermissionRequest;
@@ -125,7 +125,7 @@ export type ToolUseConfirm<Input extends AnyObject = AnyObject> = {
   onReject(feedback?: string, contentBlocks?: ContentBlockParam[]): void;
   recheckPermission(): Promise<void>;
 };
-export function getNotificationMessage(toolUseConfirm: ToolUseConfirm): string {
+function getNotificationMessage(toolUseConfirm: ToolUseConfirm): string {
   const toolName = toolUseConfirm.tool.userFacingName(toolUseConfirm.input as never);
   if (toolUseConfirm.tool === ExitPlanModeV2Tool) {
     return 'Claude Code needs your approval for the plan';

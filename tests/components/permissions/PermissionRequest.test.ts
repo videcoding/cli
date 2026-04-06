@@ -1,15 +1,7 @@
-import { describe, expect, test } from 'bun:test'
+import { afterEach, describe, expect, mock, test } from 'bun:test'
 
 const permissionRequestModuleUrl = new URL(
   '../../../src/components/permissions/PermissionRequest.tsx',
-  import.meta.url,
-).href
-const bashPermissionRequestModuleUrl = new URL(
-  '../../../src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx',
-  import.meta.url,
-).href
-const fallbackPermissionRequestModuleUrl = new URL(
-  '../../../src/components/permissions/FallbackPermissionRequest.tsx',
   import.meta.url,
 ).href
 const fileEditPermissionRequestModuleUrl = new URL(
@@ -20,20 +12,12 @@ const filesystemPermissionRequestModuleUrl = new URL(
   '../../../src/components/permissions/FilesystemPermissionRequest/FilesystemPermissionRequest.tsx',
   import.meta.url,
 ).href
-const fileWritePermissionRequestModuleUrl = new URL(
-  '../../../src/components/permissions/FileWritePermissionRequest/FileWritePermissionRequest.tsx',
+const enterPlanModePermissionRequestModuleUrl = new URL(
+  '../../../src/components/permissions/EnterPlanModePermissionRequest/EnterPlanModePermissionRequest.tsx',
   import.meta.url,
 ).href
-const enterPlanModeToolModuleUrl = new URL(
-  '../../../src/tools/EnterPlanModeTool/EnterPlanModeTool.ts',
-  import.meta.url,
-).href
-const exitPlanModeToolModuleUrl = new URL(
-  '../../../src/tools/ExitPlanModeTool/ExitPlanModeV2Tool.ts',
-  import.meta.url,
-).href
-const bashToolModuleUrl = new URL(
-  '../../../src/tools/BashTool/BashTool.tsx',
+const fallbackPermissionRequestModuleUrl = new URL(
+  '../../../src/components/permissions/FallbackPermissionRequest.tsx',
   import.meta.url,
 ).href
 const fileEditToolModuleUrl = new URL(
@@ -44,141 +28,201 @@ const fileReadToolModuleUrl = new URL(
   '../../../src/tools/FileReadTool/FileReadTool.ts',
   import.meta.url,
 ).href
-const fileWriteToolModuleUrl = new URL(
-  '../../../src/tools/FileWriteTool/FileWriteTool.ts',
-  import.meta.url,
-).href
-const globToolModuleUrl = new URL(
-  '../../../src/tools/GlobTool/GlobTool.ts',
-  import.meta.url,
-).href
-const grepToolModuleUrl = new URL(
-  '../../../src/tools/GrepTool/GrepTool.ts',
+const enterPlanModeToolModuleUrl = new URL(
+  '../../../src/tools/EnterPlanModeTool/EnterPlanModeTool.ts',
   import.meta.url,
 ).href
 
 let importCounter = 0
+const sentinel = Symbol.for('react.memo_cache_sentinel')
 
-function makeToolUseConfirm(tool: unknown, input: unknown = {}) {
-  return {
-    tool,
-    input,
-  } as never
+type LoadedPermissionRequestModules = {
+  PermissionRequest: (props: Record<string, unknown>) => unknown
+  FileEditPermissionRequest: unknown
+  FilesystemPermissionRequest: unknown
+  EnterPlanModePermissionRequest: unknown
+  FallbackPermissionRequest: unknown
+  FileEditTool: unknown
+  FileReadTool: unknown
+  EnterPlanModeTool: unknown
 }
 
-async function loadPermissionRequestModules() {
+function createToolUseConfirm(tool: unknown, input: Record<string, unknown> = {}) {
+  return {
+    assistantMessage: {} as never,
+    tool,
+    description: '',
+    input,
+    toolUseContext: {} as never,
+    toolUseID: 'tool-use-id',
+    permissionResult: 'ask' as never,
+    permissionPromptStartTimeMs: 0,
+    onUserInteraction() {},
+    onAbort() {},
+    onAllow() {},
+    onReject() {},
+    recheckPermission: async () => {},
+  }
+}
+
+async function loadPermissionRequestModules(options?: {
+  onNotify?: (message: string, notificationType: string) => void
+  onInterruptBinding?: (action: string, handler: () => void) => void
+}): Promise<LoadedPermissionRequestModules> {
+  mock.module('react/compiler-runtime', () => ({
+    c: (size: number) => Array(size).fill(sentinel),
+  }))
+  mock.module('../../../src/hooks/useNotifyAfterTimeout.ts', () => ({
+    DEFAULT_INTERACTION_THRESHOLD_MS: 6000,
+    useNotifyAfterTimeout: (message: string, notificationType: string) => {
+      options?.onNotify?.(message, notificationType)
+    },
+  }))
+  mock.module('../../../src/keybindings/useKeybinding.ts', () => ({
+    useKeybinding: (action: string, handler: () => void) => {
+      options?.onInterruptBinding?.(action, handler)
+    },
+    useKeybindings: () => {},
+  }))
+
   importCounter += 1
   const permissionRequestModule = await import(
     `${permissionRequestModuleUrl}?case=${importCounter}`
   )
   const [
-    bashPermissionRequestModule,
-    fallbackPermissionRequestModule,
     fileEditPermissionRequestModule,
     filesystemPermissionRequestModule,
-    fileWritePermissionRequestModule,
-    enterPlanModeToolModule,
-    exitPlanModeToolModule,
-    bashToolModule,
+    enterPlanModePermissionRequestModule,
+    fallbackPermissionRequestModule,
     fileEditToolModule,
     fileReadToolModule,
-    fileWriteToolModule,
-    globToolModule,
-    grepToolModule,
+    enterPlanModeToolModule,
   ] = await Promise.all([
-    import(bashPermissionRequestModuleUrl),
-    import(fallbackPermissionRequestModuleUrl),
     import(fileEditPermissionRequestModuleUrl),
     import(filesystemPermissionRequestModuleUrl),
-    import(fileWritePermissionRequestModuleUrl),
-    import(enterPlanModeToolModuleUrl),
-    import(exitPlanModeToolModuleUrl),
-    import(bashToolModuleUrl),
+    import(enterPlanModePermissionRequestModuleUrl),
+    import(fallbackPermissionRequestModuleUrl),
     import(fileEditToolModuleUrl),
     import(fileReadToolModuleUrl),
-    import(fileWriteToolModuleUrl),
-    import(globToolModuleUrl),
-    import(grepToolModuleUrl),
+    import(enterPlanModeToolModuleUrl),
   ])
 
   return {
     ...permissionRequestModule,
-    ...bashPermissionRequestModule,
-    ...fallbackPermissionRequestModule,
     ...fileEditPermissionRequestModule,
     ...filesystemPermissionRequestModule,
-    ...fileWritePermissionRequestModule,
-    ...enterPlanModeToolModule,
-    ...exitPlanModeToolModule,
-    ...bashToolModule,
+    ...enterPlanModePermissionRequestModule,
+    ...fallbackPermissionRequestModule,
     ...fileEditToolModule,
     ...fileReadToolModule,
-    ...fileWriteToolModule,
-    ...globToolModule,
-    ...grepToolModule,
-  }
+    ...enterPlanModeToolModule,
+  } as LoadedPermissionRequestModules
 }
 
-describe('PermissionRequest helpers', () => {
-  test('routes tools to the expected permission request components', async () => {
+afterEach(() => {
+  mock.restore()
+})
+
+describe('PermissionRequest', () => {
+  test('renders the expected permission request component for public tool entrypoints', async () => {
     const {
-      permissionComponentForTool,
-      BashPermissionRequest,
-      FallbackPermissionRequest,
+      PermissionRequest,
       FileEditPermissionRequest,
       FilesystemPermissionRequest,
-      FileWritePermissionRequest,
-      BashTool,
+      EnterPlanModePermissionRequest,
+      FallbackPermissionRequest,
       FileEditTool,
       FileReadTool,
-      FileWriteTool,
-      GlobTool,
-      GrepTool,
+      EnterPlanModeTool,
     } = await loadPermissionRequestModules()
 
-    expect(permissionComponentForTool(FileEditTool)).toBe(FileEditPermissionRequest)
-    expect(permissionComponentForTool(FileWriteTool)).toBe(
-      FileWritePermissionRequest,
-    )
-    expect(permissionComponentForTool(BashTool)).toBe(BashPermissionRequest)
-    expect(permissionComponentForTool(FileReadTool)).toBe(
-      FilesystemPermissionRequest,
-    )
-    expect(permissionComponentForTool(GlobTool)).toBe(FilesystemPermissionRequest)
-    expect(permissionComponentForTool(GrepTool)).toBe(FilesystemPermissionRequest)
-    expect(
-      permissionComponentForTool({
+    const fileEditElement = PermissionRequest({
+      toolUseConfirm: createToolUseConfirm(FileEditTool),
+      toolUseContext: {} as never,
+      onDone() {},
+      onReject() {},
+      verbose: false,
+      workerBadge: undefined,
+    }) as { type: unknown }
+
+    const fileReadElement = PermissionRequest({
+      toolUseConfirm: createToolUseConfirm(FileReadTool),
+      toolUseContext: {} as never,
+      onDone() {},
+      onReject() {},
+      verbose: false,
+      workerBadge: undefined,
+    }) as { type: unknown }
+
+    const enterPlanElement = PermissionRequest({
+      toolUseConfirm: createToolUseConfirm(EnterPlanModeTool),
+      toolUseContext: {} as never,
+      onDone() {},
+      onReject() {},
+      verbose: false,
+      workerBadge: undefined,
+    }) as { type: unknown }
+
+    const fallbackElement = PermissionRequest({
+      toolUseConfirm: createToolUseConfirm({
         userFacingName: () => 'Unknown tool',
-      } as never),
-    ).toBe(FallbackPermissionRequest)
+      }),
+      toolUseContext: {} as never,
+      onDone() {},
+      onReject() {},
+      verbose: false,
+      workerBadge: undefined,
+    }) as { type: unknown }
+
+    expect(fileEditElement.type).toBe(FileEditPermissionRequest)
+    expect(fileReadElement.type).toBe(FilesystemPermissionRequest)
+    expect(enterPlanElement.type).toBe(EnterPlanModePermissionRequest)
+    expect(fallbackElement.type).toBe(FallbackPermissionRequest)
   })
 
-  test('builds special-case and fallback notification messages', async () => {
-    const {
-      EnterPlanModeTool,
-      ExitPlanModeV2Tool,
-      getNotificationMessage,
-    } = await loadPermissionRequestModules()
+  test('uses the public component to produce the expected notification messages and interrupt behavior', async () => {
+    const notifications: Array<{ message: string; notificationType: string }> = []
+    let interruptAction = ''
+    let interruptHandler: (() => void) | undefined
+    const onDone = mock(() => {})
+    const onReject = mock(() => {})
+    const toolReject = mock(() => {})
 
-    expect(getNotificationMessage(makeToolUseConfirm(ExitPlanModeV2Tool))).toBe(
-      'Claude Code needs your approval for the plan',
-    )
-    expect(getNotificationMessage(makeToolUseConfirm(EnterPlanModeTool))).toBe(
-      'Claude Code wants to enter plan mode',
-    )
-    expect(
-      getNotificationMessage(
-        makeToolUseConfirm({
-          userFacingName: () => '   ',
-        } as never),
-      ),
-    ).toBe('Claude Code needs your attention')
-    expect(
-      getNotificationMessage(
-        makeToolUseConfirm({
-          userFacingName: () => 'Custom Tool',
-        } as never),
-      ),
-    ).toBe('Claude needs your permission to use Custom Tool')
+    const { PermissionRequest, EnterPlanModeTool } =
+      await loadPermissionRequestModules({
+        onNotify: (message, notificationType) => {
+          notifications.push({ message, notificationType })
+        },
+        onInterruptBinding: (action, handler) => {
+          interruptAction = action
+          interruptHandler = handler
+        },
+      })
+
+    PermissionRequest({
+      toolUseConfirm: {
+        ...createToolUseConfirm(EnterPlanModeTool),
+        onReject: toolReject,
+      },
+      toolUseContext: {} as never,
+      onDone,
+      onReject,
+      verbose: false,
+      workerBadge: undefined,
+    })
+
+    expect(notifications).toEqual([
+      {
+        message: 'Claude Code wants to enter plan mode',
+        notificationType: 'permission_prompt',
+      },
+    ])
+    expect(interruptAction).toBe('app:interrupt')
+
+    interruptHandler?.()
+
+    expect(onDone).toHaveBeenCalledTimes(1)
+    expect(onReject).toHaveBeenCalledTimes(1)
+    expect(toolReject).toHaveBeenCalledTimes(1)
   })
 })

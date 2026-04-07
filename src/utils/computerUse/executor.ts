@@ -1,7 +1,7 @@
 /**
- * CLI `ComputerExecutor` implementation. Wraps two macOS automation backends:
- *   - `computer-use-input` — mouse, keyboard, frontmost app
- *   - `computer-use` — screenshots, app metadata, permissions
+ * CLI `ComputerExecutor` implementation. Wraps two computer-use packages:
+ *   - `computer-use-input` (Rust/enigo) — mouse, keyboard, frontmost app
+ *   - `computer-use` — SCContentFilter screenshots, NSWorkspace apps, TCC
  *
  * Contract: `packages/desktop/computer-use-mcp/src/executor.ts` in the apps
  * repo. The reference impl is Cowork's `apps/desktop/src/main/nest-only/
@@ -16,10 +16,10 @@
  *
  * Terminal as surrogate host. `getTerminalBundleId()` detects the emulator
  *   we're running inside. It's passed as `hostBundleId` to `prepareDisplay`/
- *   `resolvePrepareCapture` so the backend exempts it from hide AND skips
+ *   `resolvePrepareCapture` so `computer-use` exempts it from hide AND skips
  *   it in the activate z-order walk (so the terminal being frontmost doesn't
  *   eat clicks meant for the target app). Also stripped from `allowedBundleIds`
- *   via `withoutTerminal()` so screenshots don't capture it (the current
+ *   via `withoutTerminal()` so screenshots don't capture it (`computer-use`'s
  *   captureExcluding takes an allow-list despite the name — apps#30355).
  *   `capabilities.hostBundleId` stays as the sentinel — the package's
  *   frontmost gate uses that, and the terminal being frontmost is fine.
@@ -49,8 +49,8 @@ import {
 } from './common.js'
 import { drainRunLoop } from './drainRunLoop.js'
 import { notifyExpectedEscape } from './escHotkey.js'
-import { requireComputerUse } from './computerUseLoader.js'
 import { requireComputerUseInput } from './inputLoader.js'
+import { requireComputerUse } from './computerUseLoader.js'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -266,18 +266,19 @@ export function createCliExecutor(opts: {
     )
   }
 
-  // Screenshot/app backend loaded once at factory time — every executor
-  // method needs it.
+  // `computer-use` is loaded once at factory time — every executor method
+  // needs it.
   // Input loaded lazily via requireComputerUseInput() on first mouse/keyboard
-  // call — it caches internally, so screenshot-only flows never pay the
-  // input-backend load cost.
+  // call — it caches internally, so screenshot-only flows never pull the
+  // enigo .node.
   const cu = requireComputerUse()
 
   const { getMouseAnimationEnabled, getHideBeforeActionEnabled } = opts
   const terminalBundleId = getTerminalBundleId()
   const surrogateHost = terminalBundleId ?? CLI_HOST_BUNDLE_ID
-  // captureExcluding/captureRegion take an ALLOW list despite the
-  // name (apps#30355 — complement computed backend-side against running apps).
+  // `computer-use`'s captureExcluding/captureRegion take an ALLOW list despite
+  // the name (apps#30355 — complement computed by the package against running
+  // apps).
   // The terminal isn't in the user's grants so it's naturally excluded, but if
   // the package ever passes it through we strip it here so the terminal never
   // photobombs a screenshot.
@@ -307,10 +308,14 @@ export function createCliExecutor(opts: {
       if (!getHideBeforeActionEnabled()) {
         return []
       }
-      // Keep the compatibility pump around the pre-action hide sequence so the
-      // call-site contract stays aligned with the desktop host. The current
-      // CLI backend's pump is a no-op, but older backends relied on it to
-      // drain main-run-loop work triggered by app-hide transitions.
+      // prepareDisplay isn't @MainActor (plain Task{}), but its .hide() calls
+      // trigger window-manager events that queue on CFRunLoop. Without the
+      // pump, those pile up during `computer-use`'s ~1s of usleeps and flush
+      // all at
+      // once when the next pumped call runs — visible window flashing.
+      // Electron drains CFRunLoop continuously so Cowork doesn't see this.
+      // Worst-case 100ms + 5×200ms safety-net ≈ 1.1s, well under the 30s
+      // drainRunLoop ceiling.
       //
       // "Continue with action execution even if switching fails" — the
       // frontmost gate in toolCalls.ts catches any actual unsafe state.
@@ -625,7 +630,7 @@ export function createCliExecutor(opts: {
       // `ComputerUseInstalledApp` is `{bundleId, displayName, path}`.
       // `InstalledApp` adds optional `iconDataUrl` — left unpopulated;
       // the approval dialog fetches lazily via getAppIcon() below.
-      return drainRunLoop(() => cu.apps.listInstalled())
+      return drainRunLoop(async () => cu.apps.listInstalled())
     },
 
     async getAppIcon(path: string): Promise<string | undefined> {

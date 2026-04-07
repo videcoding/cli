@@ -10,7 +10,7 @@ import { trackClaudeInChromeTabId } from './common.js'
 export type { Tool } from '@modelcontextprotocol/sdk/types.js'
 
 /**
- * All tool names from BROWSER_TOOLS in @ant/claude-for-chrome-mcp.
+ * All tool names from BROWSER_TOOLS in claude-for-chrome-mcp.
  * Keep in sync with the package's BROWSER_TOOLS array.
  */
 export type ChromeToolName =

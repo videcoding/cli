@@ -3,19 +3,22 @@ import { releasePump, retainPump } from './drainRunLoop.js'
 import { requireComputerUse } from './computerUseLoader.js'
 
 /**
- * Global Escape → abort hook surface. Mirrors Cowork's `escAbort.ts`
- * contract but without Electron: the system-level Escape interception, when
- * provided by the active backend, lives behind `computer-use`.
+ * Global Escape → abort. Mirrors Cowork's `escAbort.ts` but without Electron:
+ * CGEventTap via `computer-use`. While registered, Escape is
+ * consumed system-wide (PI defense — a prompt-injected action can't dismiss
+ * a dialog with Escape).
  *
  * Lifecycle: register on fresh lock acquire (`wrapper.tsx` `acquireCuLock`),
  * unregister on lock release (`cleanup.ts`). The tap's CFRunLoopSource sits
  * in .defaultMode on CFRunLoopGetMain(), so we hold a drainRunLoop pump
-  * retain for the registration's lifetime — same refcounted setInterval as
- * the other pump-backed computer-use operations.
+ * retain for the registration's lifetime — same refcounted setInterval as
+ * the `@MainActor` methods.
  *
  * `notifyExpectedEscape()` punches a hole for model-synthesized Escapes: the
- * executor's `key("escape")` calls it before posting the CGEvent. Backend
- * implementations can use that signal to avoid swallowing the next user ESC.
+ * executor's `key("escape")` calls it before posting the CGEvent. The native
+ * module
+ * schedules a 100ms decay so a CGEvent that never reaches the tap callback
+ * doesn't eat the next user ESC.
  */
 
 let registered = false

@@ -131,7 +131,7 @@ Based on the areas detected in Phase 1, you may need to create multiple verifier
    - Ready signal (text that appears when server is ready)
 
    For CLI tools:
-   - Entry point command (e.g., "bun run dev -- --help" or "./target/debug/myapp")
+   - Entry point command (e.g., "node ./cli.js" or "./target/debug/myapp")
    - Whether to record with asciinema
 
    For APIs:

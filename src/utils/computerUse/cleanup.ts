@@ -6,12 +6,12 @@ import { withResolvers } from '../withResolvers.js'
 import { isLockHeldLocally, releaseComputerUseLock } from './computerUseLock.js'
 import { unregisterEscHotkey } from './escHotkey.js'
 
-// cu.apps.unhide is not wrapped by drainRunLoop's 30s backstop. On abort
-// paths (where the user hit Ctrl+C because something was slow) a hang here
-// would wedge the abort. Generous timeout — unhide should be ~instant; if it
-// takes 5s something is wrong and proceeding is better than waiting. The
-// backend call continues in the background regardless; we just stop blocking
-// on it.
+// cu.apps.unhide is NOT one of the four @MainActor methods wrapped by
+// drainRunLoop's 30s backstop. On abort paths (where the user hit Ctrl+C
+// because something was slow) a hang here would wedge the abort. Generous
+// timeout — unhide should be ~instant; if it takes 5s something is wrong
+// and proceeding is better than waiting. The call continues in the background
+// regardless; we just stop blocking on it.
 const UNHIDE_TIMEOUT_MS = 5000
 
 /**
@@ -22,7 +22,7 @@ const UNHIDE_TIMEOUT_MS = 5000
  * streaming (`query.ts` aborted_streaming), abort during tool execution
  * (`query.ts` aborted_tools). All three reach this via dynamic import gated
  * on `feature('CHICAGO_MCP')`. `executor.js` (which pulls both computer-use
- * backends) is dynamic-imported below so non-CU turns don't load those
+ * packages) is dynamic-imported below so non-CU turns don't load those
  * packages just to no-op.
  *
  * No-ops cheaply on non-CU turns: both gate checks are zero-syscall.
@@ -67,7 +67,7 @@ export async function cleanupComputerUseAfterTurn(
 
   // Unregister before lock release so the pump-retain drops as soon as the
   // CU session ends. Idempotent — no-ops if registration failed at acquire.
-  // Swallow throws so a backend unregister error never prevents lock release —
+  // Swallow throws so a NAPI unregister error never prevents lock release —
   // a held lock blocks the next CU session with "in use by another session".
   try {
     unregisterEscHotkey()

@@ -1,8 +1,8 @@
 // Voice service: audio recording for push-to-talk voice input.
 //
-// Recording is routed through the audio-capture-napi workspace package,
-// which currently shells out to command-line backends (`rec`/`play` from
-// SoX, plus `arecord`/`aplay` on Linux).
+// Recording uses native audio capture (cpal) on macOS, Linux, and Windows
+// for in-process mic access. Falls back to SoX `rec` or arecord (ALSA)
+// on Linux if the native module is unavailable.
 
 import { type ChildProcess, spawn, spawnSync } from 'child_process'
 import { readFile } from 'fs/promises'
@@ -11,9 +11,12 @@ import { isEnvTruthy, isRunningOnHomespace } from '../utils/envUtils.js'
 import { logError } from '../utils/log.js'
 import { getPlatform } from '../utils/platform.js'
 
-// Lazy-loaded audio backend wrapper. Keep voice-specific backend probing
-// off the startup path so the first voice interaction pays any command
-// detection cost instead of app launch.
+// Lazy-loaded native audio module. audio-capture.node links against
+// CoreAudio.framework + AudioUnit.framework; dlopen is synchronous and
+// blocks the event loop for ~1s warm, up to ~8s on cold coreaudiod
+// (post-wake, post-boot). Load happens on first voice keypress — no
+// preload, because there's no way to make dlopen non-blocking and a
+// startup freeze is worse than a first-press delay.
 type AudioNapi = typeof import('audio-capture-napi')
 let audioNapi: AudioNapi | null = null
 let audioNapiPromise: Promise<AudioNapi> | null = null
@@ -22,7 +25,8 @@ function loadAudioNapi(): Promise<AudioNapi> {
   audioNapiPromise ??= (async () => {
     const t0 = Date.now()
     const mod = await import('audio-capture-napi')
-    // Warm the backend probe so the logged time reflects first-use setup.
+    // vendor/audio-capture-src/index.ts defers require(...node) until the
+    // first function call — trigger it here so timing reflects real cost.
     mod.isNativeAudioAvailable()
     audioNapi = mod
     logForDebugging(`[voice] audio-capture-napi loaded in ${Date.now() - t0}ms`)
@@ -117,7 +121,10 @@ export function _resetArecordProbeForTesting(): void {
   arecordProbe = null
 }
 
-// Memoized ALSA-card probe kept for tests and future backend heuristics.
+// cpal's ALSA backend writes to our process stderr when it can't find any
+// sound cards (it runs in-process — no subprocess pipe to capture it). The
+// spawn fallbacks below pipe stderr correctly, so skip native when ALSA has
+// nothing to open. Memoized: card presence doesn't change mid-session.
 let linuxAlsaCardsMemo: Promise<boolean> | null = null
 
 function linuxHasAlsaCards(): Promise<boolean> {
@@ -185,20 +192,22 @@ export async function checkVoiceDependencies(): Promise<{
   missing: string[]
   installCommand: string | null
 }> {
+  // Native audio module (cpal) handles everything on macOS, Linux, and Windows
   const napi = await loadAudioNapi()
-
   if (napi.isNativeAudioAvailable()) {
     return { available: true, missing: [], installCommand: null }
   }
 
+  // Windows has no supported fallback — native module is required
   if (process.platform === 'win32') {
     return {
       available: false,
-      missing: ['Voice mode requires the configured audio backend, but it is not available'],
+      missing: ['Voice mode requires the native audio module (not loaded)'],
       installCommand: null,
     }
   }
 
+  // On Linux, arecord (ALSA utils) is a valid fallback recording backend
   if (process.platform === 'linux' && hasCommand('arecord')) {
     return { available: true, missing: [], installCommand: null }
   }
@@ -224,15 +233,15 @@ export type RecordingAvailability = {
   reason: string | null
 }
 
-// Probe-record through the same backend chain used by `startRecording()`
+// Probe-record through the full fallback chain (native → arecord → SoX)
 // to verify that at least one backend can record. On macOS this also
 // triggers the TCC permission dialog on first use. We trust the probe
-// result over any coarse capability flag, because a binary can exist on PATH
-// while still failing to open a device.
+// result over the TCC status API, which can be unreliable for ad-hoc
+// signed or cross-architecture binaries (e.g., x64-on-arm64).
 export async function requestMicrophonePermission(): Promise<boolean> {
   const napi = await loadAudioNapi()
   if (!napi.isNativeAudioAvailable()) {
-    return true // missing-backend errors are surfaced separately by preflight
+    return true // non-native platforms skip this check
   }
 
   const started = await startRecording(
@@ -257,16 +266,18 @@ export async function checkRecordingAvailability(): Promise<RecordingAvailabilit
     }
   }
 
+  // Native audio module (cpal) handles everything on macOS, Linux, and Windows
   const napi = await loadAudioNapi()
   if (napi.isNativeAudioAvailable()) {
     return { available: true, reason: null }
   }
 
+  // Windows has no supported fallback
   if (process.platform === 'win32') {
     return {
       available: false,
       reason:
-        'Voice recording requires the configured audio backend, which could not be initialized.',
+        'Voice recording requires the native audio module, which could not be loaded.',
     }
   }
 
@@ -275,7 +286,8 @@ export async function checkRecordingAvailability(): Promise<RecordingAvailabilit
 
   // On Linux (including WSL), probe arecord. hasCommand() is insufficient:
   // the binary can exist while the device open() fails (WSL1, Win10-WSL2,
-  // headless Linux). WSL2+WSLg (Win11 default) works via PulseAudio RDP pipes.
+  // headless Linux). WSL2+WSLg (Win11 default) works via PulseAudio RDP
+  // pipes — cpal fails (no /proc/asound/cards) but arecord succeeds.
   if (process.platform === 'linux' && hasCommand('arecord')) {
     const probe = await probeArecord()
     if (probe.ok) {
@@ -315,7 +327,7 @@ export async function checkRecordingAvailability(): Promise<RecordingAvailabilit
   return { available: true, reason: null }
 }
 
-// ─── Recording (backend wrapper first, explicit Linux fallbacks second) ─────
+// ─── Recording (native audio on macOS/Linux/Windows, SoX/arecord fallback on Linux) ─────────────
 
 let activeRecorder: ChildProcess | null = null
 let nativeRecordingActive = false
@@ -327,6 +339,7 @@ export async function startRecording(
 ): Promise<boolean> {
   logForDebugging(`[voice] startRecording called, platform=${process.platform}`)
 
+  // Try native audio module first (macOS, Linux, Windows via cpal)
   const napi = await loadAudioNapi()
   const nativeAvailable =
     napi.isNativeAudioAvailable() &&
@@ -347,7 +360,7 @@ export async function startRecording(
           nativeRecordingActive = false
           onEnd()
         }
-        // In push-to-talk mode, ignore the backend wrapper's silence-triggered
+        // In push-to-talk mode, ignore the native module's silence-triggered
         // onEnd.  Recording continues until the caller explicitly calls
         // stopRecording() (e.g. when the user presses Ctrl+X).
       },
@@ -356,13 +369,12 @@ export async function startRecording(
       nativeRecordingActive = true
       return true
     }
-    // Backend recording failed — fall through to platform fallbacks
+    // Native recording failed — fall through to platform fallbacks
   }
 
+  // Windows has no supported fallback
   if (process.platform === 'win32') {
-    logForDebugging(
-      '[voice] Windows recording backend unavailable, no secondary fallback',
-    )
+    logForDebugging('[voice] Windows native recording unavailable, no fallback')
     return false
   }
 
@@ -379,6 +391,7 @@ export async function startRecording(
     return startArecordRecording(onData, onEnd)
   }
 
+  // Fallback: SoX rec (Linux, or macOS if native module unavailable)
   return startSoxRecording(onData, onEnd, options)
 }
 

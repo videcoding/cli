@@ -286,8 +286,9 @@ export async function maybeResizeAndDownsampleImageBuffer(
     }
 
     // IMPORTANT: Always create fresh sharp(imageBuffer) instances for each operation.
-    // Reusing a processor after calling toBuffer() can preserve stale format state,
-    // causing PNG and JPEG compression attempts to return identical sizes.
+    // The native image-processor-napi module doesn't properly apply format conversions
+    // when reusing a sharp instance after calling toBuffer(). This caused a bug where
+    // all compression attempts (PNG, JPEG at various qualities) returned identical sizes.
     logForDebugging(`Resizing to ${width}x${height}`)
     const resizedImageBuffer = await sharp(imageBuffer)
       .resize(width, height, {

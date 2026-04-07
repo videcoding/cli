@@ -3,14 +3,15 @@ import { withResolvers } from '../withResolvers.js'
 import { requireComputerUse } from './computerUseLoader.js'
 
 /**
- * Shared compatibility pump for computer-use backends that need main-run-loop
- * servicing. The current CLI JS backend exposes `_drainMainRunLoop()` as a
- * no-op, but keeping the wrapper preserves the desktop contract and avoids
- * special-casing older or future backends.
+ * Shared CFRunLoop pump. `computer-use`'s four `@MainActor` async methods
+ * (captureExcluding, captureRegion, apps.listInstalled, resolvePrepareCapture)
+ * and `computer-use-input`'s key()/keys() all dispatch to
+ * DispatchQueue.main. Under libuv (Node/bun) that queue never drains — the
+ * promises hang. Electron drains it via CFRunLoop so Cowork doesn't need this.
  *
- * One refcounted setInterval calls `_drainMainRunLoop` every 1ms while any
- * pump-dependent call is pending. Multiple concurrent drainRunLoop() calls
- * share the single pump via retain/release.
+ * One refcounted setInterval calls `_drainMainRunLoop` (RunLoop.main.run)
+ * every 1ms while any main-queue-dependent call is pending. Multiple
+ * concurrent drainRunLoop() calls share the single pump via retain/release.
  */
 
 let pump: ReturnType<typeof setInterval> | undefined
@@ -41,7 +42,7 @@ function release(): void {
 const TIMEOUT_MS = 30_000
 
 function timeoutReject(reject: (e: Error) => void): void {
-  reject(new Error(`computer-use backend call exceeded ${TIMEOUT_MS}ms`))
+  reject(new Error(`computer-use native call exceeded ${TIMEOUT_MS}ms`))
 }
 
 /**
@@ -62,11 +63,11 @@ export async function drainRunLoop<T>(fn: () => Promise<T>): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
     // If the timeout wins the race, fn()'s promise is orphaned — a late
-    // rejection from the backend layer would become an unhandledRejection.
+    // rejection from the native layer would become an unhandledRejection.
     // Attaching a no-op catch swallows it; the timeout error is what surfaces.
-    // fn() sits inside try so a synchronous throw still reaches release() —
-    // otherwise the pump leaks.
-    const work = Promise.resolve().then(fn)
+    // fn() sits inside try so a synchronous throw (e.g. NAPI argument
+    // validation) still reaches release() — otherwise the pump leaks.
+    const work = fn()
     work.catch(() => {})
     const timeout = withResolvers<never>()
     timer = setTimeout(timeoutReject, TIMEOUT_MS, timeout.reject)

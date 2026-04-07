@@ -228,8 +228,8 @@ export async function connectVoiceStream(
       logForDebugging(
         `[voice_stream] Sending audio chunk: ${String(audioChunk.length)} bytes`,
       )
-      // Copy the buffer before sending: backend-provided Buffers may share
-      // a pooled ArrayBuffer. Creating a view with
+      // Copy the buffer before sending: NAPI Buffer objects from native
+      // modules may share a pooled ArrayBuffer.  Creating a view with
       // `new Uint8Array(buf.buffer, offset, len)` can reference stale or
       // overlapping memory by the time the ws library reads it.
       // `Buffer.from()` makes an owned copy that the ws library can safely
@@ -289,10 +289,10 @@ export async function connectVoiceStream(
         }
 
         // Defer CloseStream to the next event-loop iteration so any audio
-        // callbacks already queued by the recording backend are flushed to
-        // the WebSocket before the server is told to stop accepting audio.
+        // callbacks already queued by the native recording module are flushed
+        // to the WebSocket before the server is told to stop accepting audio.
         // Without this, stopRecording() can return synchronously while the
-        // backend still has a pending onData callback in the event queue,
+        // native module still has a pending onData callback in the event queue,
         // causing audio to arrive after CloseStream.
         setTimeout(() => {
           finalized = true

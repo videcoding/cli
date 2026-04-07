@@ -1,4 +1,6 @@
 import { buildComputerUseTools } from 'computer-use-mcp'
+import { join } from 'path'
+import { fileURLToPath } from 'url'
 import { buildMcpToolName } from '../../services/mcp/mcpStringUtils.js'
 import type { ScopedMcpServerConfig } from '../../services/mcp/types.js'
 
@@ -30,13 +32,12 @@ export function setupComputerUseMCP(): {
   // command/args are never spawned — client.ts intercepts by name and
   // uses the in-process server. The config just needs to exist with
   // type 'stdio' to hit the right branch. Mirrors Chrome's setup.
-  const devCliEntrypoint = process.argv[1]
-  if (!isInBundledMode() && !devCliEntrypoint) {
-    throw new Error('Unable to determine CLI entrypoint for computer use MCP')
-  }
   const args = isInBundledMode()
     ? ['--computer-use-mcp']
-    : [devCliEntrypoint!, '--computer-use-mcp']
+    : [
+        join(fileURLToPath(import.meta.url), '..', 'cli.js'),
+        '--computer-use-mcp',
+      ]
 
   return {
     mcpConfig: {

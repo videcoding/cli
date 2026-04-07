@@ -2,9 +2,9 @@
 //
 // Hold the keybinding to record; release to stop and submit.  Auto-repeat
 // key events reset an internal timer — when no keypress arrives within
-// RELEASE_TIMEOUT_MS the recording stops automatically. Recording is provided
-// by the shared voice service and Anthropic's voice_stream endpoint
-// (conversation_engine) handles STT.
+// RELEASE_TIMEOUT_MS the recording stops automatically.  Uses the native
+// audio module (macOS) or SoX for recording, and Anthropic's voice_stream
+// endpoint (conversation_engine) for STT.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSetVoiceState } from '../context/voice.js'
@@ -133,9 +133,10 @@ export function normalizeLanguageForSTT(language: string | undefined): {
   return { code: DEFAULT_STT_LANGUAGE, fellBackFrom: language }
 }
 
-// Lazy-loaded voice module. We defer importing voice.ts (and its
-// audio-capture-napi dependency) until voice input is actually activated so
-// voice-specific backend checks stay off the default startup path.
+// Lazy-loaded voice module. We defer importing voice.ts (and its native
+// audio-capture-napi dependency) until voice input is actually activated.
+// On macOS, loading the native audio module can trigger a TCC microphone
+// permission prompt — we must avoid that until voice input is actually enabled.
 type VoiceModule = typeof import('../services/voice.js')
 let voiceModule: VoiceModule | null = null
 
@@ -521,9 +522,11 @@ export function useVoice({
   }
 
   // When voice is enabled, lazy-import voice.ts so checkRecordingAvailability
-  // et al. are ready when the user presses the voice key. We still defer all
-  // actual backend work until recording starts: that first interaction may
-  // synchronously probe external tools and trigger OS microphone prompts.
+  // et al. are ready when the user presses the voice key. Do NOT preload the
+  // native module — require('audio-capture.node') is a synchronous dlopen of
+  // CoreAudio/AudioUnit that blocks the event loop for ~1s (warm) to ~8s
+  // (cold coreaudiod). setImmediate doesn't help: it yields one tick, then the
+  // dlopen still blocks. The first voice keypress pays the dlopen cost instead.
   useEffect(() => {
     if (enabled && !voiceModule) {
       void import('../services/voice.js').then(mod => {

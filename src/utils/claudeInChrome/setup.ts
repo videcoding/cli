@@ -2,6 +2,7 @@ import { BROWSER_TOOLS } from 'claude-for-chrome-mcp'
 import { chmod, mkdir, readFile, writeFile } from 'fs/promises'
 import { homedir } from 'os'
 import { join } from 'path'
+import { fileURLToPath } from 'url'
 import {
   getIsInteractive,
   getIsNonInteractiveSession,
@@ -134,10 +135,9 @@ export function setupClaudeInChrome(): {
       systemPrompt: getChromeSystemPrompt(),
     }
   } else {
-    const cliPath = process.argv[1]
-    if (!cliPath) {
-      throw new Error('Unable to determine CLI entrypoint for Claude in Chrome')
-    }
+    const __filename = fileURLToPath(import.meta.url)
+    const __dirname = join(__filename, '..')
+    const cliPath = join(__dirname, 'cli.js')
 
     void createWrapperScript(
       `"${process.execPath}" "${cliPath}" --chrome-native-host`,

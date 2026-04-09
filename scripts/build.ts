@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import type { SpawnSyncReturns } from 'node:child_process'
 import {
   mkdirSync,
   readFileSync,
@@ -9,20 +10,32 @@ import {
   binaryOut,
   distDir,
   getSourceBuildOptions,
+  type PackageJson,
   root,
   sourceBundle,
   sourceBuildLog,
-} from './runtime.mjs'
+} from './runtime.ts'
 
 if (typeof Bun === 'undefined') {
   process.stderr.write('Run this build script with Bun: `bun run build`.\n')
   process.exit(1)
 }
 
+type CommandResult = SpawnSyncReturns<string>
+type BuildLog = {
+  level?: string
+  message?: unknown
+  position?: {
+    file: string
+    line: number
+    column: number
+  } | null
+}
+
 rmSync(distDir, { recursive: true, force: true })
 mkdirSync(distDir, { recursive: true })
 
-function run(command, args) {
+function run(command: string, args: string[]): CommandResult {
   const result = spawnSync(command, args, {
     cwd: root,
     encoding: 'utf8',
@@ -36,12 +49,12 @@ function run(command, args) {
   }
 }
 
-function printOutput(result) {
+function printOutput(result: Pick<CommandResult, 'stdout' | 'stderr'>): void {
   if (result.stdout) process.stdout.write(result.stdout)
   if (result.stderr) process.stderr.write(result.stderr)
 }
 
-function fail(message, result) {
+function fail(message: string, result?: CommandResult): never {
   if (message) {
     process.stderr.write(`${message}\n`)
   }
@@ -51,7 +64,7 @@ function fail(message, result) {
   process.exit(result?.status ?? 1)
 }
 
-function formatBuildLog(log) {
+function formatBuildLog(log: BuildLog): string {
   const level = log.level ? `[${String(log.level).toUpperCase()}] ` : ''
   const location = log.position
     ? `${log.position.file}:${log.position.line}:${log.position.column}\n`
@@ -60,11 +73,11 @@ function formatBuildLog(log) {
   return `${level}${location}${message}`.trim()
 }
 
-function writeSourceLog(message) {
+function writeSourceLog(message: string): void {
   writeFileSync(sourceBuildLog, `${message.trim()}\n`)
 }
 
-async function buildFromSource(pkg) {
+async function buildFromSource(pkg: PackageJson): Promise<boolean> {
   const { buildOptions } = getSourceBuildOptions()
   const sourceBuild = await Bun.build(buildOptions)
 

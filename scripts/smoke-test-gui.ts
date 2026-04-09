@@ -2,6 +2,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
+import type { SpawnSyncReturns } from 'node:child_process'
 
 if (typeof Bun === 'undefined') {
   process.stderr.write('Run this GUI smoke test with Bun: `bun run smoke:gui`.\n')
@@ -9,8 +10,25 @@ if (typeof Bun === 'undefined') {
 }
 
 const root = process.cwd()
+type RunOptions = {
+  env?: NodeJS.ProcessEnv
+}
 
-function run(command, args, options = {}) {
+type CommandResult = SpawnSyncReturns<string> & {
+  stdout: string
+  stderr: string
+}
+
+type PermissionName = 'Accessibility' | 'Screen Recording'
+type PermissionState = 'granted' | 'missing'
+type PermissionStatus = Partial<Record<PermissionName, PermissionState>>
+type JsonRecord = Record<string, unknown>
+
+function run(
+  command: string,
+  args: string[],
+  options: RunOptions = {},
+): CommandResult {
   const result = spawnSync(command, args, {
     cwd: root,
     encoding: 'utf8',
@@ -28,7 +46,11 @@ function run(command, args, options = {}) {
   }
 }
 
-function runInherit(command, args, options = {}) {
+function runInherit(
+  command: string,
+  args: string[],
+  options: RunOptions = {},
+): void {
   const result = spawnSync(command, args, {
     cwd: root,
     stdio: 'inherit',
@@ -46,7 +68,7 @@ function runInherit(command, args, options = {}) {
   }
 }
 
-function printResult(label, result) {
+function printResult(label: string, result: CommandResult): void {
   process.stdout.write(`\n== ${label} ==\n`)
   process.stdout.write(`exit: ${String(result.status ?? result.signal ?? 'unknown')}\n`)
   if (result.stdout.trim()) {
@@ -57,7 +79,13 @@ function printResult(label, result) {
   }
 }
 
-function expectOk(label, command, args, validate, options) {
+function expectOk(
+  label: string,
+  command: string,
+  args: string[],
+  validate?: (result: CommandResult) => boolean,
+  options: RunOptions = {},
+): CommandResult {
   const result = run(command, args, options)
   printResult(`${label}: ${[command, ...args].join(' ')}`, result)
   if (result.error) {
@@ -72,54 +100,64 @@ function expectOk(label, command, args, validate, options) {
   return result
 }
 
-function parseJsonOutput(label, command, args, options) {
+function parseJsonOutput<T extends JsonRecord>(
+  label: string,
+  command: string,
+  args: string[],
+  options: RunOptions = {},
+): T {
   const result = expectOk(label, command, args, () => true, options)
   const text = result.stdout.trim()
   if (!text) {
     throw new Error(`${label} produced no stdout`)
   }
   try {
-    return JSON.parse(text)
+    return JSON.parse(text) as T
   } catch (error) {
     throw new Error(`${label} did not produce valid JSON: ${String(error)}`)
   }
 }
 
-function parseBooleanEnv(name, fallback = false) {
+function parseBooleanEnv(name: string, fallback = false): boolean {
   const raw = process.env[name]
   if (!raw) return fallback
   return raw === '1' || raw.toLowerCase() === 'true'
 }
 
-function delay(ms) {
+function delay(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 }
 
-function requireString(value, label) {
+function requireString(value: unknown, label: string): string {
   if (typeof value !== 'string' || value.length === 0) {
     throw new Error(`${label} was missing or empty`)
   }
   return value
 }
 
-function requireNumber(value, label) {
+function requireNumber(value: unknown, label: string): number {
   if (typeof value !== 'number' || Number.isNaN(value)) {
     throw new Error(`${label} was missing or invalid`)
   }
   return value
 }
 
-function parsePermissionStatus(lines) {
-  const status = {}
+function parsePermissionStatus(lines: string[]): PermissionStatus {
+  const status: PermissionStatus = {}
   for (const line of lines) {
     const match = line.match(/^\s*(Accessibility|Screen Recording):\s*(granted|missing)\s*$/i)
     if (!match) continue
-    status[match[1]] = match[2].toLowerCase()
+    const name = match[1] as PermissionName
+    const state = match[2].toLowerCase() as PermissionState
+    status[name] = state
   }
   return status
 }
 
-function preflightGuiPermissions() {
+function preflightGuiPermissions(): {
+  lines: string[]
+  status: PermissionStatus
+} {
   const script = [
     'tell application "System Events"',
     'set uiEnabled to UI elements enabled',
@@ -151,13 +189,13 @@ function preflightGuiPermissions() {
   }
 }
 
-function ensureMacOs() {
+function ensureMacOs(): void {
   if (process.platform !== 'darwin') {
     throw new Error('GUI smoke test is only supported on macOS.')
   }
 }
 
-function checkPermissionsOrThrow() {
+function checkPermissionsOrThrow(): void {
   const preflight = preflightGuiPermissions()
   for (const line of preflight.lines) {
     process.stdout.write(`${line}\n`)
@@ -181,7 +219,7 @@ function checkPermissionsOrThrow() {
   )
 }
 
-function activateTextEdit() {
+function activateTextEdit(): void {
   runInherit('open', ['-a', 'TextEdit'])
   for (let i = 0; i < 20; i++) {
     const frontmost = run('osascript', [
@@ -196,7 +234,7 @@ function activateTextEdit() {
   throw new Error('TextEdit did not become frontmost in time.')
 }
 
-function buildExecutorScript(lines) {
+function buildExecutorScript(lines: string[]): string {
   return [
     `const root = ${JSON.stringify(root)};`,
     `process.chdir(root);`,
@@ -204,16 +242,19 @@ function buildExecutorScript(lines) {
   ].join('\n')
 }
 
-function runExecutor(label, bodyLines, validate) {
+function runExecutor<T extends JsonRecord>(
+  label: string,
+  bodyLines: string[],
+): T {
   const script = buildExecutorScript(bodyLines)
-  return parseJsonOutput(label, 'bun', ['-e', script], {
+  return parseJsonOutput<T>(label, 'bun', ['-e', script], {
     env: {
       CLAUDE_CODE_TEST_STDOUT_JSON: '1',
     },
   })
 }
 
-function assertScreenshotPayload(payload, label) {
+function assertScreenshotPayload(payload: JsonRecord, label: string): void {
   const width = requireNumber(payload.width, `${label}.width`)
   const height = requireNumber(payload.height, `${label}.height`)
   const byteLength = requireNumber(payload.byteLength, `${label}.byteLength`)
@@ -222,7 +263,7 @@ function assertScreenshotPayload(payload, label) {
   }
 }
 
-function main() {
+function main(): void {
   ensureMacOs()
 
   expectOk('build', 'bun', ['run', 'build'], result =>
@@ -241,7 +282,7 @@ function main() {
     throw new Error('Unable to determine the frontmost application.')
   }
 
-  const mousePosition = runExecutor(
+  const mousePosition = runExecutor<{ x: number; y: number }>(
     'mouse-position',
     [
       "import input from './packages/computer-use-input/src/index.js';",
@@ -251,7 +292,11 @@ function main() {
   requireNumber(mousePosition.x, 'mouse-position.x')
   requireNumber(mousePosition.y, 'mouse-position.y')
 
-  const packageScreenshot = runExecutor(
+  const packageScreenshot = runExecutor<{
+    width: number
+    height: number
+    byteLength: number
+  }>(
     'package-screenshot',
     [
       "import cu from './packages/computer-use/src/index.js';",
@@ -261,7 +306,11 @@ function main() {
   )
   assertScreenshotPayload(packageScreenshot, 'package-screenshot')
 
-  const executorScreenshot = runExecutor(
+  const executorScreenshot = runExecutor<{
+    width: number
+    height: number
+    byteLength: number
+  }>(
     'executor-screenshot',
     [
       "import { createExecutor } from './src/utils/computerUse/executor.ts';",

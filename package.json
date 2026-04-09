@@ -16,13 +16,13 @@
     "packages/*"
   ],
   "scripts": {
-    "clean": "node scripts/clean.mjs",
-    "build": "bun scripts/build.mjs",
-    "dev": "bun scripts/dev.mjs",
+    "clean": "bun scripts/clean.ts",
+    "build": "bun scripts/build.ts",
+    "dev": "bun scripts/dev.ts",
     "test": "bun test --preload ./tests/preload.ts",
     "test:coverage": "bun test --coverage --preload ./tests/preload.ts",
-    "smoke": "bun scripts/smoke-test.mjs",
-    "smoke:gui": "bun scripts/smoke-test-gui.mjs",
+    "smoke": "bun scripts/smoke-test.ts",
+    "smoke:gui": "bun scripts/smoke-test-gui.ts",
     "prepublishOnly": "node -e \"if (!process.env.AUTHORIZED) { console.error('ERROR: Direct publishing is not allowed.\\nPlease see the release workflow documentation to publish this package.'); process.exit(1); }\""
   },
   "dependencies": {

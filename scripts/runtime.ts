@@ -1,6 +1,25 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+export interface PackageJson {
+  version?: string
+  homepage?: string
+  bugs?: {
+    url?: string
+  }
+}
+
+export interface MacroValues {
+  ISSUES_EXPLAINER: string
+  PACKAGE_URL: string
+  README_URL: string
+  VERSION: string
+  FEEDBACK_CHANNEL: string
+  BUILD_TIME: string
+  NATIVE_PACKAGE_URL: string
+  VERSION_CHANGELOG: string
+}
+
 export const root = process.cwd()
 export const distDir = join(root, 'dist')
 export const sourceOutDir = join(distDir, 'src-build')
@@ -8,13 +27,13 @@ export const sourceEntrypoint = 'src/entrypoints/cli.tsx'
 export const sourceBundle = join(sourceOutDir, 'cli.js')
 export const sourceBuildLog = join(distDir, 'source-build.log')
 export const binaryOut = join(distDir, 'claude')
-export const enabledFeatures = ['BUDDY']
+export const enabledFeatures: string[] = ['BUDDY']
 
-export function getPackageJson() {
-  return JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+export function getPackageJson(): PackageJson {
+  return JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as PackageJson
 }
 
-export function getMacroValues(pkg) {
+export function getMacroValues(pkg: PackageJson): MacroValues {
   const feedbackChannel =
     process.env.CLAUDE_CODE_FEEDBACK_CHANNEL ||
     pkg.bugs?.url ||
@@ -41,11 +60,14 @@ export function getMacroValues(pkg) {
   }
 }
 
-export function getMacroBanner(macroValues) {
+export function getMacroBanner(macroValues: MacroValues): string {
   return `const MACRO = Object.freeze(${JSON.stringify(macroValues)});\n`
 }
 
-export function getSourceBuildOptions() {
+export function getSourceBuildOptions(): {
+  pkg: PackageJson
+  buildOptions: Parameters<typeof Bun.build>[0]
+} {
   const pkg = getPackageJson()
 
   return {

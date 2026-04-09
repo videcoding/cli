@@ -1,16 +1,17 @@
 import { spawnSync } from 'node:child_process'
+import type { BuildOutput } from 'bun'
 import {
   getSourceBuildOptions,
   root,
   sourceBundle,
-} from './runtime.mjs'
+} from './runtime.ts'
 
 if (typeof Bun === 'undefined') {
   process.stderr.write('Run this dev script with Bun: `bun run dev`.\n')
   process.exit(1)
 }
 
-async function buildSource() {
+async function buildSource(): Promise<BuildOutput> {
   const { buildOptions } = getSourceBuildOptions()
   const result = await Bun.build(buildOptions)
 
@@ -24,7 +25,7 @@ async function buildSource() {
   return result
 }
 
-function runBundle(cliArgs) {
+function runBundle(cliArgs: string[]): never {
   const child = spawnSync('bun', [sourceBundle, ...cliArgs], {
     cwd: root,
     stdio: 'inherit',

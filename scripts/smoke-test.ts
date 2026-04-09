@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import type { SpawnSyncReturns } from 'node:child_process'
 
 if (typeof Bun === 'undefined') {
   process.stderr.write('Run this smoke test with Bun: `bun run smoke`.\n')
@@ -6,8 +7,20 @@ if (typeof Bun === 'undefined') {
 }
 
 const root = process.cwd()
+type RunOptions = {
+  env?: NodeJS.ProcessEnv
+}
 
-function run(command, args, options = {}) {
+type CommandResult = SpawnSyncReturns<string> & {
+  stdout: string
+  stderr: string
+}
+
+function run(
+  command: string,
+  args: string[],
+  options: RunOptions = {},
+): CommandResult {
   const result = spawnSync(command, args, {
     cwd: root,
     encoding: 'utf8',
@@ -25,7 +38,7 @@ function run(command, args, options = {}) {
   }
 }
 
-function printResult(label, result) {
+function printResult(label: string, result: CommandResult): void {
   process.stdout.write(`\n== ${label} ==\n`)
   process.stdout.write(`exit: ${String(result.status ?? result.signal ?? 'unknown')}\n`)
   if (result.stdout.trim()) {
@@ -36,7 +49,13 @@ function printResult(label, result) {
   }
 }
 
-function expectOk(label, command, args, validate, options) {
+function expectOk(
+  label: string,
+  command: string,
+  args: string[],
+  validate?: (result: CommandResult) => boolean,
+  options: RunOptions = {},
+): CommandResult {
   const result = run(command, args, options)
   printResult(`${label}: ${[command, ...args].join(' ')}`, result)
   if (result.error) {
@@ -48,9 +67,18 @@ function expectOk(label, command, args, validate, options) {
   if (validate && !validate(result)) {
     throw new Error(`${label} produced unexpected output`)
   }
+
+  return result
 }
 
-function expectKnownFailure(label, command, args, acceptedExitCodes, validate, options) {
+function expectKnownFailure(
+  label: string,
+  command: string,
+  args: string[],
+  acceptedExitCodes: readonly number[],
+  validate?: (result: CommandResult) => boolean,
+  options: RunOptions = {},
+): void {
   const result = run(command, args, options)
   printResult(`${label}: ${[command, ...args].join(' ')}`, result)
   if (result.error) {

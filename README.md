@@ -29,7 +29,7 @@ bun run dev -- --help
 bun run dev -- --version
 ```
 
-`bun run dev` executes [`scripts/dev.mjs`](./scripts/dev.mjs), which builds [`src/entrypoints/cli.tsx`](./src/entrypoints/cli.tsx) into [`dist/src-build/cli.js`](./dist/src-build/cli.js) and runs that bundle with the shared feature configuration used by the build pipeline.
+`bun run dev` executes [`scripts/dev.ts`](./scripts/dev.ts), which builds [`src/entrypoints/cli.tsx`](./src/entrypoints/cli.tsx) into [`dist/src-build/cli.js`](./dist/src-build/cli.js) and runs that bundle with the shared feature configuration used by the build pipeline.
 
 ## Build
 

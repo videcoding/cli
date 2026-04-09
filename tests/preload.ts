@@ -14,8 +14,11 @@ const macroTarget = globalThis as typeof globalThis & {
 macroTarget.MACRO = Object.freeze({
   ISSUES_EXPLAINER:
     process.env.CLAUDE_CODE_ISSUES_EXPLAINER ||
-    `report the issue at ${pkg.bugs?.url || 'https://github.com/anthropics/claude-code/issues'}`,
-  PACKAGE_URL: process.env.CLAUDE_CODE_PACKAGE_URL || pkg.name || '@videcoding/cli',
+    `report the issue at ${pkg.bugs?.url || 'https://github.com/videcoding/cli/issues'}`,
+  PACKAGE_URL:
+    process.env.CLAUDE_CODE_PACKAGE_URL ||
+    pkg.homepage ||
+    'https://github.com/videcoding/cli',
   README_URL:
     process.env.CLAUDE_CODE_README_URL ||
     'https://code.claude.com/docs/en/overview',
@@ -23,12 +26,12 @@ macroTarget.MACRO = Object.freeze({
   FEEDBACK_CHANNEL:
     process.env.CLAUDE_CODE_FEEDBACK_CHANNEL ||
     pkg.bugs?.url ||
-    'https://github.com/anthropics/claude-code/issues',
+    'https://github.com/videcoding/cli/issues',
   BUILD_TIME: process.env.CLAUDE_CODE_BUILD_TIME || '1970-01-01T00:00:00.000Z',
   NATIVE_PACKAGE_URL:
     process.env.CLAUDE_CODE_NATIVE_PACKAGE_URL ||
     process.env.CLAUDE_CODE_PACKAGE_URL ||
-    pkg.name ||
-    '@videcoding/cli',
+    pkg.homepage ||
+    'https://github.com/videcoding/cli',
   VERSION_CHANGELOG: process.env.CLAUDE_CODE_VERSION_CHANGELOG || '',
 })

@@ -126,10 +126,6 @@ if (process.platform === 'darwin') {
   )
 }
 
-expectOk('bin-launcher', 'node', ['bin/claude.js', '--version'], result =>
-  result.stdout.includes('(Claude Code)'),
-)
-
 expectOk('help', './dist/claude', ['--help'], result =>
   result.stdout.includes('Usage: claude'),
 )

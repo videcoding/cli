@@ -12,4 +12,3 @@ for (const entry of readdirSync(root, { withFileTypes: true })) {
 }
 
 process.stdout.write('Cleaned generated build artifacts.\n')
-

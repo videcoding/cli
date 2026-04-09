@@ -5,20 +5,19 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
-import { join } from 'node:path'
+import {
+  binaryOut,
+  distDir,
+  getSourceBuildOptions,
+  root,
+  sourceBundle,
+  sourceBuildLog,
+} from './runtime.mjs'
 
 if (typeof Bun === 'undefined') {
   process.stderr.write('Run this build script with Bun: `bun run build`.\n')
   process.exit(1)
 }
-
-const root = process.cwd()
-const distDir = join(root, 'dist')
-const sourceOutDir = join(distDir, 'src-build')
-const sourceEntrypoint = 'src/entrypoints/cli.tsx'
-const sourceBundle = join(sourceOutDir, 'cli.js')
-const sourceErrorLog = join(distDir, 'source-build-error.log')
-const binaryOut = join(distDir, 'claude')
 
 rmSync(distDir, { recursive: true, force: true })
 mkdirSync(distDir, { recursive: true })
@@ -62,58 +61,12 @@ function formatBuildLog(log) {
 }
 
 function writeSourceLog(message) {
-  writeFileSync(sourceErrorLog, `${message.trim()}\n`)
-}
-
-
-function getPackageJson() {
-  return JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
-}
-
-function getMacroValues(pkg) {
-  const feedbackChannel =
-    process.env.CLAUDE_CODE_FEEDBACK_CHANNEL ||
-    pkg.bugs?.url ||
-    'https://github.com/anthropics/claude-code/issues'
-  const packageUrl =
-    process.env.CLAUDE_CODE_PACKAGE_URL ||
-    pkg.name ||
-    '@videcoding/cli'
-
-  return {
-    ISSUES_EXPLAINER:
-      process.env.CLAUDE_CODE_ISSUES_EXPLAINER ||
-      `report the issue at ${feedbackChannel}`,
-    PACKAGE_URL: packageUrl,
-    README_URL:
-      process.env.CLAUDE_CODE_README_URL ||
-      'https://code.claude.com/docs/en/overview',
-    VERSION: pkg.version || '0.0.0',
-    FEEDBACK_CHANNEL: feedbackChannel,
-    BUILD_TIME: process.env.CLAUDE_CODE_BUILD_TIME || new Date().toISOString(),
-    NATIVE_PACKAGE_URL:
-      process.env.CLAUDE_CODE_NATIVE_PACKAGE_URL || packageUrl,
-    VERSION_CHANGELOG: process.env.CLAUDE_CODE_VERSION_CHANGELOG || '',
-  }
-}
-
-function getMacroBanner(macroValues) {
-  return `const MACRO = Object.freeze(${JSON.stringify(macroValues)});\n`
+  writeFileSync(sourceBuildLog, `${message.trim()}\n`)
 }
 
 async function buildFromSource(pkg) {
-  const macroValues = getMacroValues(pkg)
-  const sourceBuild = await Bun.build({
-    entrypoints: [sourceEntrypoint],
-    outdir: sourceOutDir,
-    target: 'node',
-    format: 'esm',
-    banner: getMacroBanner(macroValues),
-    define: {
-      'process.env.USER_TYPE': JSON.stringify('external'),
-    },
-    features: ['BUDDY'],
-  })
+  const { buildOptions } = getSourceBuildOptions()
+  const sourceBuild = await Bun.build(buildOptions)
 
   if (!sourceBuild.success) {
     const buildErrors = sourceBuild.logs.map(formatBuildLog).join('\n\n')
@@ -128,7 +81,7 @@ async function buildFromSource(pkg) {
         .filter(Boolean)
         .join('\n'),
     )
-    process.stderr.write(readFileSync(sourceErrorLog, 'utf8'))
+    process.stderr.write(readFileSync(sourceBuildLog, 'utf8'))
     return false
   }
 
@@ -153,7 +106,7 @@ async function buildFromSource(pkg) {
         .filter(Boolean)
         .join('\n'),
     )
-    process.stderr.write(readFileSync(sourceErrorLog, 'utf8'))
+    process.stderr.write(readFileSync(sourceBuildLog, 'utf8'))
     return false
   }
 
@@ -173,7 +126,7 @@ async function buildFromSource(pkg) {
         .filter(Boolean)
         .join('\n'),
     )
-    process.stderr.write(readFileSync(sourceErrorLog, 'utf8'))
+    process.stderr.write(readFileSync(sourceBuildLog, 'utf8'))
     return false
   }
 
@@ -196,9 +149,9 @@ async function buildFromSource(pkg) {
   return true
 }
 
-const pkg = getPackageJson()
+const { pkg } = getSourceBuildOptions()
 const builtFromSource = await buildFromSource(pkg)
 
 if (!builtFromSource) {
-  fail(`Source build failed. See ${sourceErrorLog} for details.`)
+  fail(`Source build failed. See ${sourceBuildLog} for details.`)
 }

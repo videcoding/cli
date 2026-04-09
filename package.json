@@ -8,9 +8,6 @@
   "author": "Anthropic <support@anthropic.com>",
   "license": "UNLICENSED",
   "description": "Use Claude, Anthropic's AI assistant, right from your terminal. Claude can understand your codebase, edit files, run terminal commands, and handle entire workflows for you.",
-  "bin": {
-    "claude": "bin/claude.js"
-  },
   "homepage": "https://github.com/videcoding/cli",
   "bugs": {
     "url": "https://github.com/videcoding/cli/issues"
@@ -21,13 +18,11 @@
   "scripts": {
     "clean": "node scripts/clean.mjs",
     "build": "bun scripts/build.mjs",
-    "dev": "bun --feature BUDDY --preload ./scripts/dev-preload.mjs ./src/entrypoints/cli.tsx",
-    "dev:watch": "bun scripts/dev.mjs --watch-only",
+    "dev": "bun scripts/dev.mjs",
     "test": "bun test --preload ./tests/preload.ts",
-    "test:watch": "bun test --watch --preload ./tests/preload.ts",
     "test:coverage": "bun test --coverage --preload ./tests/preload.ts",
     "smoke": "bun scripts/smoke-test.mjs",
-    "smoke:gui": "bun scripts/gui-smoke-test.mjs",
+    "smoke:gui": "bun scripts/smoke-test-gui.mjs",
     "prepublishOnly": "node -e \"if (!process.env.AUTHORIZED) { console.error('ERROR: Direct publishing is not allowed.\\nPlease see the release workflow documentation to publish this package.'); process.exit(1); }\""
   },
   "dependencies": {

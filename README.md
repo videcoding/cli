@@ -29,7 +29,7 @@ bun run dev -- --help
 bun run dev -- --version
 ```
 
-`bun run dev` executes [`src/entrypoints/cli.tsx`](./src/entrypoints/cli.tsx) with [`scripts/dev-preload.mjs`](./scripts/dev-preload.mjs), so local workspace packages are used directly during development.
+`bun run dev` executes [`scripts/dev.mjs`](./scripts/dev.mjs), which builds [`src/entrypoints/cli.tsx`](./src/entrypoints/cli.tsx) into [`dist/src-build/cli.js`](./dist/src-build/cli.js) and runs that bundle with the shared feature configuration used by the build pipeline.
 
 ## Build
 
@@ -60,12 +60,6 @@ Unit and integration tests:
 bun run test
 ```
 
-Watch mode:
-
-```bash
-bun run test:watch
-```
-
 Coverage report:
 
 ```bash
@@ -84,6 +78,12 @@ GUI smoke test:
 bun run smoke:gui
 ```
 
+Test layering:
+
+- `bun run test`: source-level tests for modules, handlers, and entrypoints
+- `bun run smoke`: built-artifact smoke checks in the current machine environment
+- `bun run smoke:gui`: macOS desktop smoke checks
+
 Recommended validation sequence:
 
 ```bash
@@ -100,7 +100,6 @@ The standard smoke test currently verifies:
 
 - build success
 - `./dist/claude --version`
-- `node bin/claude.js --version`
 - `./dist/claude --help`
 - `./dist/claude auth status --text`
 - `./dist/claude plugin list`
@@ -147,7 +146,6 @@ The main local workspace packages involved in development and smoke coverage are
 - [`src`](./src): main CLI source
 - [`packages`](./packages): local workspace packages
 - [`scripts`](./scripts): build, development, and smoke-test scripts
-- [`bin`](./bin): launcher entrypoint
 - [`vendor`](./vendor): vendored helper binaries such as fallback `ripgrep`
 
 ## Current Notes
